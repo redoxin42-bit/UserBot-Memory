@@ -24,11 +24,9 @@ logger = logging.getLogger("HostManager")
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-API_ID = os.getenv("API_ID")
-API_HASH = os.getenv("API_HASH")
 
-if not BOT_TOKEN or not API_ID or not API_HASH:
-    logger.critical("BOT_TOKEN, API_ID или API_HASH отсутствуют в конфигурации!")
+if not BOT_TOKEN:
+    logger.critical("BOT_TOKEN отсутствует в конфигурации!")
     exit(1)
 
 SESSIONS_DIR = "sessions"
@@ -39,11 +37,15 @@ CONFIG_FILE = os.path.join(SESSIONS_DIR, "config.json")
 user_states = {}
 active_userbots = {}
 
-# Инициализируем управляющего хост-бота
+# Используем официальные публичные ключи Telegram для работы самого менеджера.
+# Это позволяет запустить хост-бота без ввода API_ID и API_HASH на этапе деплоя.
+OFFICIAL_API_ID = 6
+OFFICIAL_API_HASH = "eb06d4abfb49dc3eeb1aeb98ae0f581e"
+
 manager_bot = Client(
     name="sessions/manager_bot",
-    api_id=int(API_ID),
-    api_hash=API_HASH,
+    api_id=OFFICIAL_API_ID,
+    api_hash=OFFICIAL_API_HASH,
     bot_token=BOT_TOKEN
 )
 
@@ -89,7 +91,7 @@ async def ping_handler(client: Client, message: Message):
     await message.edit_text(f"<b>Pong!</b> 🏓\\nЗадержка: <code>{ping_ms} ms</code>")
 ''')
 
-    # 2. Модуль загрузки модулей (.dlm) с исправленным shutil.move (Anti-Scam)
+    # 2. Модуль загрузки модулей (.dlm) с Anti-Scam
     dlm_path = os.path.join(MODULES_DIR, "dlm.py")
     if not os.path.exists(dlm_path):
         with open(dlm_path, "w", encoding="utf-8") as f:
@@ -170,7 +172,7 @@ async def start_handler(client, message: Message):
     user_states[user_id] = {"step": "waiting_api_id"}
     await message.reply_text(
         "👋 Привет! Это **UserBot Memory**.\n\n"
-        "Для продолжения настройки введите ваш **API_ID**:"
+        "Для продолжения настройки введите ваш личный **API_ID**:"
     )
 
 
@@ -188,7 +190,7 @@ async def input_handler(client, message: Message):
     if step == "waiting_api_id":
         state["api_id"] = text
         state["step"] = "waiting_api_hash"
-        await message.reply_text("Отлично. Теперь введите ваш **API_HASH**:")
+        await message.reply_text("Отлично. Теперь введите ваш личный **API_HASH**:")
 
     elif step == "waiting_api_hash":
         state["api_hash"] = text
@@ -200,6 +202,7 @@ async def input_handler(client, message: Message):
         await message.reply_text("⏳ Инициализирую подключение к Telegram... Пожалуйста, подождите.")
         
         try:
+            # Инициализация юзербота под конкретные ключи, которые ввел данный пользователь
             user_client = Client(
                 name=f"sessions/user_{user_id}",
                 api_id=int(state["api_id"]),
